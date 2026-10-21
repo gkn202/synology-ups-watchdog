@@ -240,7 +240,7 @@ async function refresh(){
     return;
   }
   const u = d.ups || {};
-  $("ver").textContent = (d.version ? "v"+d.version+" · " : "") + (d.driver||"");
+  $("ver").textContent = (d.version ? "v"+d.version.replace(/-[0-9]+$/,"")+" · " : "") + (d.driver||"");
   $("taskcmd").textContent = (d.task_command || "sleep 30\\n/var/packages/UPSWatchdog/target/bin/ups-watchdog.sh start").replace(/\\n/g, "\n");
   $("log").textContent = (d.log||"").replace(/\\n/g,"\n") || "–";
   $("raw").textContent = Object.keys(u).sort().map(k => k+": "+u[k]).join("\n") || "–";
