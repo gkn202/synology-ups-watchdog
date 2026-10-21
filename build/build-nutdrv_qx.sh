@@ -32,7 +32,8 @@ git checkout -q -f "$NUT_COMMIT"
 git apply "$HERE/nut/0001-nutdrv_qx-battery_voltage_divisor.patch"
 
 ./autogen.sh >/dev/null
-./configure --with-usb=libusb-1.0 --without-snmp --without-neon --without-powerman \
+./configure --prefix=/usr --sysconfdir=/etc/ups --with-statepath=/run/ups_state \
+            --with-pidpath=/run --with-altpidpath=/run/ups_state --with-usb=libusb-1.0 --without-snmp --without-neon --without-powerman \
             --without-modbus --without-ipmi --without-avahi --without-ssl \
             --without-wrap --without-libltdl --without-dev --without-docs \
             --with-drivers=nutdrv_qx --disable-shared --enable-static \

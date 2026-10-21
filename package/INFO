@@ -1,5 +1,5 @@
 package="UPSWatchdog"
-version="3.0.3-0002"
+version="3.0.3-0003"
 os_min_ver="7.0-40000"
 arch="x86_64"
 displayname="UPS-Watchdog"
