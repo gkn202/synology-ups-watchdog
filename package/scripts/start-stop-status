@@ -1,0 +1,9 @@
+#!/bin/sh
+# The privileged driver/upsd are started by a root Task Scheduler task
+# (see the app window). The package itself only provides the UI.
+case "$1" in
+    start|stop) exit 0 ;;
+    status) exit 0 ;;   # UI is always available; UPS state is shown in the app
+    log) echo "/var/packages/UPSWatchdog/var/root.log"; exit 0 ;;
+    *) exit 1 ;;
+esac

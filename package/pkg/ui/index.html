@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UPS-Watchdog</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1d232b; --muted:#5d6672; --line:#e3e6ea;
+    --ok:#1f8a4c; --ok-bg:#e7f5ec; --warn:#b35c00; --warn-bg:#fff2e0;
+    --bad:#c0262d; --bad-bg:#fde9ea; --accent:#2a64c5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:22px 20px 40px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  h1{font-size:26px;margin:0}
+  .sub{color:var(--muted);font-size:15px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+  .hero{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+  .badge{font-size:28px;font-weight:700;padding:14px 22px;border-radius:12px;min-width:250px;text-align:center}
+  .badge.ok{background:var(--ok-bg);color:var(--ok)}
+  .badge.warn{background:var(--warn-bg);color:var(--warn)}
+  .badge.bad{background:var(--bad-bg);color:var(--bad)}
+  .badge.off{background:#eef0f3;color:var(--muted)}
+  .hero .info{font-size:16px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .tile .k{color:var(--muted);font-size:15px}
+  .tile .v{font-size:30px;font-weight:650;margin-top:2px}
+  .tile .v small{font-size:17px;font-weight:500;color:var(--muted);margin-left:3px}
+  .bar{height:14px;border-radius:7px;background:#eceff3;margin-top:10px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--ok);width:0;transition:width .4s}
+  h2{font-size:20px;margin:0 0 12px}
+  ol{margin:0;padding-left:22px} li{margin:8px 0}
+  code,.cmd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px}
+  .cmd{display:flex;gap:8px;align-items:center;background:#f1f3f6;border:1px solid var(--line);
+       border-radius:8px;padding:8px 10px;margin-top:6px;overflow-x:auto}
+  .cmd span{white-space:pre-wrap;overflow-wrap:anywhere;flex:1}
+  button{font:inherit;font-size:15px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+         border-radius:8px;padding:7px 14px;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  .check{display:inline-block;width:1.3em;font-weight:700}
+  .done{color:var(--ok)} .todo{color:var(--warn)}
+  form{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:end}
+  label{font-size:15px;color:var(--muted);display:block}
+  input{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-top:4px}
+  pre{background:#f1f3f6;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13.5px;
+      max-height:220px;overflow:auto;white-space:pre-wrap;margin:0}
+  details summary{cursor:pointer;font-weight:600;font-size:18px}
+  .note{font-size:15px;color:var(--muted);margin-top:10px}
+  .msg{font-size:15px;margin-left:8px}
+  .countdown{font-size:22px;padding:16px 22px}
+  .countdown b{font-size:34px;margin:0 6px}
+  .countdown span{font-size:16px;color:var(--muted)}
+  .countdown.warn{background:var(--warn-bg);color:var(--warn);border-color:#f2d3a8}
+  .countdown.bad{background:var(--bad-bg);color:var(--bad);border-color:#f3c4c6}
+  .chip{display:flex;align-items:center;gap:12px;font-size:17px;padding:12px 18px}
+  .chip.ok{background:var(--ok-bg);color:var(--ok);border-color:#c6e7d3}
+  .chip.bad{background:var(--bad-bg);color:var(--bad);border-color:#f3c4c6}
+  .chip b{font-size:18px}
+  select{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-top:4px;background:#fff}
+  footer{color:var(--muted);font-size:14px;margin-top:22px}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 data-t="title">UPS-Watchdog</h1>
+      <div class="sub" id="sub">USB 0925:1234 · NUT nutdrv_qx / richcomm-svc</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="rescanBtn" onclick="rescan()" data-t="rescan">Search USB port</button>
+      <button class="ghost" onclick="refresh()" data-t="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <div id="badge" class="badge off" data-t="loading">Loading…</div>
+    <div class="info" id="heroInfo"></div>
+  </section>
+
+  <section class="card countdown" id="countdown" hidden></section>
+
+  <section class="card chip" id="chipCard" hidden><span id="chipIcon"></span><div id="chipText"></div></section>
+
+  <section class="card" id="metricsCard" hidden>
+    <div class="grid">
+      <div class="tile"><div class="k" data-t="charge">Battery charge</div>
+        <div class="v" id="m_charge">–</div><div class="bar"><i id="m_chargebar"></i></div></div>
+      <div class="tile"><div class="k" data-t="battv">Battery voltage</div><div class="v" id="m_battv">–</div></div>
+      <div class="tile"><div class="k" data-t="load">Load</div>
+        <div class="v" id="m_load">–</div><div class="bar"><i id="m_loadbar"></i></div></div>
+      <div class="tile"><div class="k" data-t="temp">Temperature</div><div class="v" id="m_temp">–</div></div>
+      <div class="tile"><div class="k" data-t="outv">Output voltage</div><div class="v" id="m_outv">–</div></div>
+      <div class="tile"><div class="k" data-t="inv">Input voltage</div><div class="v" id="m_inv">–</div></div>
+      <div class="tile"><div class="k" data-t="freq">Frequency</div><div class="v" id="m_freq">–</div></div>
+      <div class="tile" id="t_rt" hidden><div class="k" data-t="runtime">Battery time left (est.)</div><div class="v" id="m_rt">–</div></div>
+      <div class="tile"><div class="k" id="k_set" data-t="setoff">Power off set to</div><div class="v" id="m_set">–</div></div>
+      <div class="tile"><div class="k" data-t="beeper">Beeper</div><div class="v" id="m_beep" style="font-size:24px">–</div></div>
+    </div>
+    <p class="note" data-t="chargenote">The UPS reports no charge percentage; it is estimated from the battery voltage. Under load on battery the estimate is rough. The runtime is estimated from charge and load (800 W, 12 V / 9 Ah battery).</p>
+  </section>
+
+  <section class="card" id="setupCard">
+    <h2 data-t="setup">Setup</h2>
+    <ol>
+      <li><span class="check" id="s1"></span><span data-t="s1">Create a boot task that starts the driver as root:</span>
+        <div class="note" data-t="s1path">Control Panel → Task Scheduler → Create → Triggered Task → User-defined script · User: <b>root</b> · Event: <b>Boot-up</b> · Run command:</div>
+        <div class="note" id="s1note" style="color:var(--warn)"></div>
+        <div class="cmd"><span id="taskcmd">…</span><button class="ghost" onclick="copyCmd()" data-t="copy">Copy</button></div>
+      </li>
+      <li><span class="check" id="s2"></span><span data-t="s2">Select the new task and click “Run” once (or restart the NAS).</span></li>
+      <li><span class="check" id="s3"></span><span data-t="s3">Control Panel → Hardware &amp; Power → UPS: leave UPS support <b>off</b>. This package powers the NAS off itself (DSM's standby would never wake up again).</span></li>
+      <li><span class="check" id="s4"></span><span data-t="s4">Control Panel → Hardware &amp; Power → General: enable “Restart automatically when power supply issue is fixed” and “Enable WOL on LAN 1”.</span>
+        <div class="note" id="s4note"></div></li>
+      <li><span class="check">•</span><span data-t="s5">Wake-up after power returns: a smart plug with ESPHome (e.g. NOUS A1T) in a wall socket <b>not</b> on the UPS, on the same Wi-Fi/LAN. Add this to the plug’s ESPHome configuration (merge <code>on_boot</code> into the existing <code>esphome:</code> section) and flash it:</span>
+        <div class="cmd"><span id="tasrule">…</span><button class="ghost" onclick="copyCmd()" data-t="copy">Copy</button></div>
+        <div class="note" data-t="s5b">When mains returns the plug boots and sends a Wake-on-LAN packet every 30 s for about 10 minutes.</div></li>
+    </ol>
+    <p class="note" data-t="uninst">Before uninstalling the package: run the same task once with “remove” instead of “start” at the end of the command, then delete the task.</p>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary data-t="adv">Settings &amp; log</summary>
+      <p class="note" data-t="setnote">Empty fields are determined automatically: IP, voltage divisor (from the nominal voltage) and full/empty thresholds (13.1 V / 10.4 V per 12 V). Run the boot task again after saving.</p>
+      <form id="setform" onsubmit="return save(event)">
+        <div><label data-t="f_sda">Power off after (min, 0 = at “battery low”)</label><input name="SHUTDOWN_AFTER" placeholder="5"></div>
+        <div><label data-t="f_ip">NAS LAN IP</label><input name="NAS_IP" placeholder="auto"></div>
+        <div><label data-t="f_nom">Battery nominal voltage</label><select name="BATT_NOMINAL">
+          <option value="12">12 V</option><option value="24">24 V</option>
+          <option value="36">36 V</option><option value="48">48 V</option></select></div>
+        <div><label data-t="f_div">Battery voltage divisor</label><input name="VOLTAGE_DIVISOR" placeholder="auto"></div>
+        <div><label data-t="f_hi">Battery full (V)</label><input name="VOLT_HIGH" placeholder="auto"></div>
+        <div><label data-t="f_lo">Battery empty (V)</label><input name="VOLT_LOW" placeholder="auto"></div>
+        <div><label data-t="f_sub">Subdriver</label><select name="SUBDRIVER">
+          <option value="">auto (richcomm-svc → armac)</option>
+          <option value="richcomm-svc">richcomm-svc</option>
+          <option value="armac">armac</option></select></div>
+        <div><button type="submit" data-t="save">Save</button><span class="msg" id="savemsg"></span></div>
+      </form>
+      <h2 style="margin-top:18px" data-t="log">Log</h2>
+      <pre id="log">–</pre>
+      <h2 style="margin-top:18px" data-t="raw">All UPS variables</h2>
+      <pre id="raw">–</pre>
+    </details>
+  </section>
+
+  <footer>
+    <span id="ver"></span> · Licence GPL-2.0-or-later · Built on
+    <a href="https://networkupstools.org" target="_blank" rel="noopener">Network UPS Tools</a> ·
+    <a href="doc.html" data-t="docs">Documentation</a> ·
+    <a href="mailto:gary.kneip@infinis.lu?subject=UPS-Watchdog%20%E2%80%93%20full%20description%20request" data-t="reqdoc">Request full description</a> ·
+    <a href="https://github.com/gkn202/synology-ups-watchdog" target="_blank" rel="noopener">Source</a>
+  </footer>
+</div>
+
+<script>
+const T = {
+  de: { title:"UPS-Watchdog", refresh:"Aktualisieren", loading:"Lade…", charge:"Ladestand", battv:"Batteriespannung",
+        load:"Last", inv:"Eingangsspannung", outv:"Ausgangsspannung", freq:"Frequenz", temp:"Temperatur", beeper:"Piepser",
+        chargenote:"Die USV meldet keinen Ladestand in %; er wird aus der Batteriespannung geschätzt. Auf Batterie unter Last ist die Schätzung grob. Die Laufzeit wird aus Ladestand und Last geschätzt (800 W, Akku 12 V / 9 Ah).", runtime:"Akku-Restlaufzeit (geschätzt)", docs:"Dokumentation", reqdoc:"Vollständige Beschreibung anfordern", noWatch:"<b>Watchdog läuft nicht</b> – die NAS wird bei Stromausfall <b>nicht</b> abgeschaltet. Systemsteuerung → Aufgabenplaner → Boot-Aufgabe markieren → „Ausführen“.", setoff:"Abschalten eingestellt", offIn:"NAS schaltet ab in", setLow:"bei „Batterie schwach“", setAfter:"nach", onBatt:"auf Batterie",
+        setup:"Einrichtung", s1:"Boot-Aufgabe anlegen, die den Treiber als root startet:",
+        s1path:"Systemsteuerung → Aufgabenplaner → Erstellen → Ausgelöste Aufgabe → Benutzerdefiniertes Skript · Benutzer: <b>root</b> · Ereignis: <b>Hochfahren</b> · Befehl:",
+        copy:"Kopieren", s2:"Die neue Aufgabe markieren und einmal „Ausführen“ klicken (oder die NAS neu starten).",
+        s3:"Systemsteuerung → Hardware & Energie → USV: USV-Unterstützung <b>aus</b> lassen. Dieses Paket schaltet die NAS selbst aus (aus dem DSM-Standby wacht sie nie wieder auf).",
+        s4:"Systemsteuerung → Hardware & Energie → Allgemein: „Nach einem Stromausfall automatisch neu starten“ und „WOL auf LAN 1 aktivieren“ einschalten.",
+        s5:"Aufwecken nach Netzrückkehr: Steckdose mit ESPHome (z. B. NOUS A1T) in einer Wandsteckdose, <b>nicht</b> an der USV, im selben WLAN/LAN. Diesen Block in die ESPHome-Konfiguration der Steckdose übernehmen (<code>on_boot</code> in den vorhandenen <code>esphome:</code>-Abschnitt einfügen) und flashen:",
+        s5b:"Kommt das Netz zurück, startet die Steckdose und schickt etwa 10 Minuten lang alle 30 s ein Wake-on-LAN-Paket.",
+        wolOn:"WOL ist auf dieser Netzwerkkarte aktiv.", wolOff:"WOL ist auf dieser Netzwerkkarte noch aus.",
+        f_sda:"Ausschalten nach (Min., 0 = bei „Batterie schwach“)", shutdownAt:"Einstellung", dsmOn:"Die USV-Unterstützung von DSM ist eingeschaltet. Bitte ausschalten (Systemsteuerung → Hardware & Energie → USV), sonst geht DSM in den Standby und wacht nicht mehr auf.", lowOnly:"Die NAS schaltet sich aus, sobald die USV „Batterie schwach“ meldet.",
+        uninst:"Vor dem Deinstallieren: dieselbe Aufgabe einmal mit „remove“ statt „start“ am Ende ausführen, dann die Aufgabe löschen.",
+        adv:"Einstellungen & Protokoll", setnote:"Leere Felder werden automatisch bestimmt: IP, Spannungsteiler (aus der Nennspannung) und Voll/Leer-Schwellen (13,1 V / 10,4 V je 12 V). Nach dem Speichern die Boot-Aufgabe erneut ausführen.", f_nom:"Nennspannung Batterie", shutdownIn:"NAS schaltet sich aus in", onBattSince:"auf Batterie seit", dsmSetting:"DSM-Einstellung", noAuth:"Nicht angemeldet", noAuthHint:"Die App über das DSM-Hauptmenü öffnen (nicht als eigenen Browser-Tab) oder neu bei DSM anmelden.", rescan:"USB-Port suchen", rescanning:"Suche läuft … (ca. 20 s)", rescanNoWatch:"Erst verfügbar, wenn die Boot-Aufgabe gelaufen ist.", usbLost:"USB getrennt", usbLostHint:"Das USB-Kabel der USV ist abgezogen oder die USV ist ausgeschaltet. Bei Stromausfall kann die NAS nicht mehr sauber ausgeschaltet werden. Kabel wieder einstecken; der Treiber versucht sich selbst neu zu verbinden; kommen keine Werte zurück, die Boot-Aufgabe einmal ausführen.", notAtBoot:"Das Hilfsskript lief seit dem letzten Neustart nicht – die Aufgabe fehlt, ist deaktiviert oder hat nicht das Ereignis „Hochfahren“.", manualRun:"Von Hand gestartet. Ob die Aufgabe auch beim Hochfahren läuft, wird nach dem nächsten Neustart bestätigt.", battery:"Batterie", divisor:"Teiler",
+        f_sub:"Subdriver", chipOk:"Richcomm-Chip erkannt", chipBad:"Kein Richcomm-Chip (USB 0925:1234) gefunden",
+        chipBadHint:"Diese USV wird von dieser App nicht unterstützt oder das USB-Kabel ist nicht eingesteckt.",
+        otherUps:"Gefundene Standard-USV – sie wird von DSM direkt unterstützt (USV-Typ „USB-USV“):", activeSub:"Subdriver",
+        f_ip:"LAN-IP der NAS", f_div:"Divisor Batteriespannung", f_hi:"Batterie voll (V)", f_lo:"Batterie leer (V)", save:"Speichern",
+        log:"Protokoll", raw:"Alle USV-Variablen",
+        OL:"Am Netz", OB:"Auf Batterie", LB:"Batterie schwach", off:"Keine Verbindung", setupNeeded:"Einrichtung nötig",
+        saved:"Gespeichert – Boot-Aufgabe erneut ausführen", copied:"Kopiert", lastroot:"Letzter Start", yes:"an", no:"aus" },
+  en: { shutdownIn:"NAS powers off in", onBattSince:"on battery for", shutdownAt:"setting", lowOnly:"The NAS powers off as soon as the UPS reports “battery low”.", dsmOn:"DSM's own UPS support is switched on. Please switch it off (Control Panel → Hardware & Power → UPS), otherwise DSM enters standby and never wakes up.", wolOn:"WOL is enabled on this network interface.", wolOff:"WOL is still off on this network interface.", noAuth:"Not signed in", noAuthHint:"Open the app from the DSM main menu (not as a separate browser tab), or sign in to DSM again.", rescan:"Search USB port", rescanning:"Searching… (about 20 s)", rescanNoWatch:"Only available once the boot task has run.", usbLost:"USB disconnected", usbLostHint:"The UPS's USB cable is unplugged or the UPS is switched off. The NAS can no longer power off safely on a power failure. Reconnect the cable; the driver tries to reconnect by itself; if the values do not return, run the boot task once.", notAtBoot:"The helper has not run since the last boot – the task is missing, disabled, or its event is not “Boot-up”.", manualRun:"Started manually. Whether the task also runs at boot is confirmed after the next restart.", battery:"Battery", divisor:"divisor", setLow:"at “battery low”", setAfter:"after", onBatt:"on battery", setoff:"Power off set to", offIn:"NAS powers off in", noWatch:"<b>Watchdog not running</b> – the NAS will <b>not</b> power off on a power failure. Control Panel → Task Scheduler → select the boot task → “Run”.", chipOk:"Richcomm chip detected", chipBad:"No Richcomm chip (USB 0925:1234) found",
+        chipBadHint:"This UPS is not supported by this app, or the USB cable is not connected.",
+        otherUps:"Standard UPS found – DSM supports it natively (UPS type “USB UPS”):", activeSub:"Subdriver",
+        OL:"On line", OB:"On battery", LB:"Battery low", off:"No connection", setupNeeded:"Setup required",
+        saved:"Saved – run the boot task again", copied:"Copied", lastroot:"Last start", yes:"on", no:"off" },
+  fr: { shutdownIn:"Arrêt du NAS dans", onBattSince:"sur batterie depuis", shutdownAt:"réglage", lowOnly:"Le NAS s'éteint dès que l'onduleur signale « batterie faible ».", dsmOn:"La prise en charge onduleur de DSM est activée. Désactivez-la (Panneau de configuration → Matériel et alimentation → Onduleur), sinon DSM passe en veille et ne se réveille plus.", wolOn:"WOL est actif sur cette interface réseau.", wolOff:"WOL est encore désactivé sur cette interface réseau.", s3:"Panneau de configuration → Matériel et alimentation → Onduleur : laisser la prise en charge <b>désactivée</b>. Ce paquet éteint lui-même le NAS.", s4:"Panneau de configuration → Matériel et alimentation → Général : activer « Redémarrer automatiquement après une panne de courant » et « Activer WOL sur LAN 1 ».", s5:"Réveil au retour du courant : une prise sous ESPHome (p. ex. NOUS A1T) sur une prise murale <b>hors</b> onduleur, dans le même Wi-Fi/LAN. Ajoutez ce bloc à la configuration ESPHome de la prise (insérer <code>on_boot</code> dans la section <code>esphome:</code> existante) puis flashez-la :", s5b:"Au retour du secteur, la prise démarre et envoie un paquet Wake-on-LAN toutes les 30 s pendant environ 10 minutes.", f_sda:"Arrêt après (min sur batterie, 0 = seulement à « batterie faible »)", noAuth:"Non connecté", noAuthHint:"Ouvrez l'application depuis le menu principal de DSM (pas dans un onglet séparé) ou reconnectez-vous à DSM.", rescan:"Chercher le port USB", rescanning:"Recherche… (env. 20 s)", rescanNoWatch:"Disponible une fois la tâche de démarrage exécutée.", usbLost:"USB déconnecté", usbLostHint:"Le câble USB de l'onduleur est débranché ou l'onduleur est éteint. le NAS ne peut plus s’éteindre proprement en cas de coupure. Rebranchez le câble ; le pilote tente de se reconnecter ; sinon relancez la tâche de démarrage.", notAtBoot:"Le script n'a pas été exécuté depuis le dernier démarrage – tâche absente, désactivée ou sans l'événement « Démarrage ».", manualRun:"Lancé manuellement. L'exécution au démarrage sera confirmée après le prochain redémarrage.", battery:"Batterie", divisor:"diviseur", runtime:"Autonomie restante (estimée)", docs:"Documentation", reqdoc:"Demander la description complète", noWatch:"<b>Watchdog arrêté</b> – le NAS ne s’éteindra <b>pas</b> en cas de coupure. Panneau de configuration → Planificateur de tâches → sélectionner la tâche de démarrage → « Exécuter ».", setoff:"Arrêt réglé", offIn:"Arrêt du NAS dans", setLow:"à « batterie faible »", setAfter:"après", onBatt:"sur batterie", chargenote:"L’onduleur ne fournit pas de charge en % ; elle est estimée à partir de la tension batterie. Sur batterie et sous charge, l’estimation est approximative. L’autonomie est estimée à partir de la charge et de la puissance consommée (800 W, batterie 12 V / 9 Ah).", f_nom:"Tension nominale batterie", chipOk:"Puce Richcomm détectée", chipBad:"Aucune puce Richcomm (USB 0925:1234) trouvée",
+        chipBadHint:"Cet onduleur n'est pas pris en charge par cette application, ou le câble USB n'est pas branché.",
+        otherUps:"Onduleur standard trouvé – DSM le prend en charge directement (type « Onduleur USB ») :", activeSub:"Sous-pilote",
+        title:"UPS-Watchdog", refresh:"Actualiser", charge:"Charge batterie", battv:"Tension batterie", load:"Charge",
+        inv:"Tension d'entrée", outv:"Tension de sortie", freq:"Fréquence", temp:"Température", beeper:"Bip",
+        OL:"Sur secteur", OB:"Sur batterie", LB:"Batterie faible", off:"Pas de connexion", setupNeeded:"Configuration requise",
+        saved:"Enregistré – relancer la tâche", copied:"Copié", lastroot:"Dernier démarrage", yes:"oui", no:"non" }
+};
+const lang = (navigator.language||"en").slice(0,2);
+const L = Object.assign({}, T.en, T[lang]||{});
+document.documentElement.lang = lang;
+document.querySelectorAll("[data-t]").forEach(el => { const k=el.dataset.t; if (T[lang] && T[lang][k]) el.innerHTML = T[lang][k]; });
+
+const $ = id => document.getElementById(id);
+// DSM 7 protects CGI authentication with a per-session CSRF token that lives
+// in the DSM desktop window (the app runs in an iframe inside it).
+let cachedToken = "";
+async function synoToken(){
+  for (const w of [window.parent, window.top, window.opener]) {
+    try { const t = w && w.SYNO && w.SYNO.SDS && w.SYNO.SDS.Session && w.SYNO.SDS.Session.SynoToken; if (t) return t; } catch(e) {}
+  }
+  // App opened in its own browser tab: ask DSM for the session token
+  if (!cachedToken) {
+    try { const j = await (await fetch("/webman/login.cgi", {credentials:"same-origin", cache:"no-store"})).json(); cachedToken = j.SynoToken || ""; } catch(e) {}
+  }
+  return cachedToken;
+}
+async function api(url, opts={}){
+  const t = await synoToken();
+  const u = t ? url + (url.includes("?") ? "&" : "?") + "SynoToken=" + encodeURIComponent(t) : url;
+  opts.credentials = "same-origin";
+  opts.headers = Object.assign({}, opts.headers||{}, t ? {"X-SYNO-TOKEN": t} : {});
+  return fetch(u, opts);
+}
+const num = (v, d=1) => (v===undefined||v==="") ? null : Number(v).toFixed(d);
+function setVal(id, v, unit){ $(id).innerHTML = v===null ? "–" : `${v}<small>${unit}</small>`; }
+
+async function refresh(){
+  let d;
+  try {
+    const r = await api("status.cgi", {cache:"no-store"});
+    d = await r.json();
+    if (r.status === 401) d = {auth:false, online:false, ups:{}, root:{}};
+  } catch(e) { d = {online:false, ups:{}, root:{}}; }
+  if (d.auth === false) {
+    const b = $("badge"); b.className = "badge off"; b.textContent = L.noAuth;
+    $("heroInfo").innerHTML = L.noAuthHint; $("metricsCard").hidden = true;
+    return;
+  }
+  const u = d.ups || {};
+  $("ver").textContent = (d.version ? "v"+d.version+" · " : "") + (d.driver||"");
+  $("taskcmd").textContent = (d.task_command || "sleep 30\\n/var/packages/UPSWatchdog/target/bin/ups-watchdog.sh start").replace(/\\n/g, "\n");
+  $("log").textContent = (d.log||"").replace(/\\n/g,"\n") || "–";
+  $("raw").textContent = Object.keys(u).sort().map(k => k+": "+u[k]).join("\n") || "–";
+
+  const s = d.settings || {};
+  const f = $("setform");
+  const rb = $("rescanBtn");
+  if (rescanUntil && (Date.now() > rescanUntil || (!d.rescan_pending && d.root_epoch*1000 > rescanStart))) rescanUntil = 0;
+  rb.disabled = !d.watchdog || !!rescanUntil;
+  rb.textContent = rescanUntil ? L.rescanning : (T[lang]&&T[lang].rescan) || L.rescan;
+  rb.title = d.watchdog ? "" : L.rescanNoWatch;
+  rb.style.opacity = rb.disabled && !rescanUntil ? .5 : 1;
+  const usb = d.usb || {};
+  const cc = $("chipCard"); cc.hidden = !("richcomm" in usb);
+  if (usb.richcomm) {
+    cc.className = "card chip ok"; $("chipIcon").textContent = "✓";
+    $("chipText").innerHTML = `<b>${L.chipOk}</b> · USB 0925:1234` + (d.active_subdriver ? ` · ${L.activeSub}: ${d.active_subdriver}` : "")
+      + (d.active_nominal ? ` · ${L.battery} ${d.active_nominal} V, ${L.divisor} ${d.active_divisor}` : "");
+  } else if ("richcomm" in usb) {
+    cc.className = "card chip bad"; $("chipIcon").textContent = "✕";
+    $("chipText").innerHTML = `<b>${L.chipBad}</b><br>` + (usb.other_ups ? `${L.otherUps} ${usb.other_ups}` : L.chipBadHint);
+  }
+  for (const k of ["SHUTDOWN_AFTER","NAS_IP","VOLTAGE_DIVISOR","VOLT_HIGH","VOLT_LOW","SUBDRIVER","BATT_NOMINAL"])
+    if (document.activeElement !== f[k] && !f[k].dataset.dirty) f[k].value = s[k] || (k === "BATT_NOMINAL" ? (d.active_nominal || "12") : "");
+
+  const badge = $("badge");
+  const rootOk = d.root && d.root.result === "ok";
+  // Step 1: the helper ran within 10 minutes after the last boot -> boot task exists
+  const bootRun = d.root_epoch > 0 && d.boot_epoch > 0 && d.root_epoch >= d.boot_epoch && d.root_epoch - d.boot_epoch < 600;
+  const ranOnce = d.root_epoch > 0;
+  const sinceBoot = ranOnce && d.root_epoch >= d.boot_epoch;
+  $("s1").innerHTML = bootRun ? '<span class="done">✓</span>' : ranOnce ? '<span class="todo">?</span>' : '<span class="todo">•</span>';
+  $("s2").innerHTML = rootOk ? '<span class="done">✓</span>' : '<span class="todo">•</span>';
+  $("s1note").textContent = bootRun ? "" : !ranOnce ? "" : sinceBoot ? L.manualRun : L.notAtBoot;
+  const ip = d.root && d.root.nas_ip;
+  const dsm = d.dsm || {};
+  const dsmOn = dsm.enabled === "yes" || dsm.slave === "yes";
+  $("s3").innerHTML = d.root_epoch > 0 && !dsmOn ? '<span class="done">✓</span>' : '<span class="todo">•</span>';
+  const wolOn = (d.wol||"").includes("g");
+  $("s4").innerHTML = wolOn ? '<span class="done">✓</span>' : '<span class="todo">•</span>';
+  $("s4note").textContent = d.wol ? (wolOn ? L.wolOn : L.wolOff) : "";
+  const mac = d.mac || "AA:BB:CC:DD:EE:FF";
+  $("tasrule").textContent = [
+    "button:",
+    "  - platform: wake_on_lan",
+    "    id: wol_nas",
+    "    name: \"WOL NAS\"",
+    "    target_mac_address: " + mac.toUpperCase(),
+    "",
+    "esphome:",
+    "  on_boot:",
+    "    priority: -100",
+    "    then:",
+    "      - wait_until:",
+    "          condition: wifi.connected",
+    "          timeout: 120s",
+    "      - delay: 60s",
+    "      - repeat:",
+    "          count: 20",
+    "          then:",
+    "            - button.press: wol_nas",
+    "            - delay: 30s"
+  ].join("\n");
+
+  const usbLost = ("richcomm" in usb) && !usb.richcomm && d.root_epoch > 0;
+  if (usbLost) {
+    badge.className = "badge bad"; badge.textContent = L.usbLost;
+    $("heroInfo").innerHTML = L.usbLostHint;
+    $("metricsCard").hidden = true;
+    return;
+  }
+  if (!d.online) {
+    badge.className = "badge " + (d.root && d.root.result ? "bad" : "off");
+    badge.textContent = d.root && d.root.result ? L.off : L.setupNeeded;
+    $("heroInfo").innerHTML = d.root && d.root.message ? `${d.root.message}<br>${L.lastroot}: ${d.root.time||"–"}` : "";
+    $("metricsCard").hidden = true;
+    return;
+  }
+  const st = (u["ups.status"]||"").split(" ");
+  let cls="ok", txt=L.OL;
+  if (st.includes("OB")) { cls="warn"; txt=L.OB; }
+  if (st.includes("LB")) { cls="bad"; txt=L.LB; }
+  badge.className = "badge "+cls; badge.textContent = txt;
+  // countdown to DSM standby while on battery
+  const cd = $("countdown");
+  const wait = 60 * parseInt(d.shutdown_after || "5", 10);
+  if (!d.watchdog) {
+    cdState = null; cd.hidden = false; cd.className = "card countdown bad"; cd.innerHTML = L.noWatch;
+  } else if (dsmOn) {
+    cdState = null; cd.hidden = false; cd.className = "card countdown bad"; cd.innerHTML = L.dsmOn;
+  } else if (st.includes("OB") && d.ob_since > 0) {
+    cd.hidden = false;
+    if (wait > 0) { cdState = {ob: d.ob_since, wait, now: d.now, at: Date.now()}; drawCountdown(); }
+    else { cdState = null; cd.className = "card countdown warn"; cd.innerHTML = L.lowOnly; }
+  } else { cdState = null; cd.hidden = true; }
+  $("heroInfo").innerHTML = `${u["device.mfr"]||u["ups.mfr"]||""} ${u["driver.parameter.desc"]||u["device.description"]||""}<br>`+
+     `${u["ups.type"]||""} · ${L.lastroot}: ${d.root.time||"–"}`;
+  $("metricsCard").hidden = false;
+
+  const ch = num(u["battery.charge"],0);
+  setVal("m_charge", ch, "%"); $("m_chargebar").style.width = (ch||0)+"%";
+  $("m_chargebar").style.background = ch!==null && ch<30 ? "var(--bad)" : ch!==null && ch<60 ? "var(--warn)" : "var(--ok)";
+  setVal("m_battv", num(u["battery.voltage"],2), "V");
+  const ld = num(u["ups.load"],0);
+  setVal("m_load", ld, "%"); $("m_loadbar").style.width = Math.min(ld||0,100)+"%";
+  $("m_loadbar").style.background = ld>80 ? "var(--bad)" : ld>60 ? "var(--warn)" : "var(--accent)";
+  setVal("m_inv", num(u["input.voltage"]), "V");
+  setVal("m_outv", num(u["output.voltage"]), "V");
+  setVal("m_freq", num(u["input.frequency"]), "Hz");
+  setVal("m_temp", num(u["ups.temperature"]), "°C");
+  // on mains: only the configured setting; on battery: real time left
+  const onBatt = st.includes("OB");
+  const rtUps = num(u["battery.runtime"],0);
+  let rtMin = null;
+  if (rtUps) rtMin = Math.round(rtUps/60);
+  else if (ch !== null && ld) {
+    const watts = Math.max(ld/100*800, 5);            // UPS rated 800 W
+    const wh = 12*9 * (ch/100) * 0.85 * (watts > 200 ? 0.6 : watts > 80 ? 0.8 : 0.9); // inverter loss, Peukert
+    rtMin = Math.round(wh / watts * 60);
+  }
+  $("t_rt").hidden = !onBatt;
+  $("m_rt").textContent = rtMin === null ? "–" :
+    (rtUps ? "" : "≈ ") + (rtMin >= 120 ? Math.floor(rtMin/60) + " h " + (rtMin%60) + " min" : rtMin + " min");
+  const sa = parseInt(d.shutdown_after || "5", 10);
+  setTile = { sa, onBatt };
+  drawSetTile();
+  $("m_beep").textContent = u["ups.beeper.status"]==="enabled" ? L.yes : u["ups.beeper.status"] ? L.no : "–";
+}
+
+let setTile = null;
+function drawSetTile(){
+  if (!setTile) return;
+  const {sa, onBatt} = setTile, v = $("m_set");
+  if (onBatt && sa > 0 && cdState) {
+    const now = cdState.now + Math.floor((Date.now() - cdState.at) / 1000);
+    const left = Math.max(0, cdState.ob + cdState.wait - now);
+    $("k_set").textContent = L.offIn;
+    v.style.fontSize = "";
+    v.innerHTML = Math.floor(left/60) + ":" + String(left%60).padStart(2,"0") + ` <small>min</small>`;
+  } else {
+    $("k_set").textContent = L.setoff;
+    v.style.fontSize = sa > 0 ? "" : "22px";
+    v.innerHTML = sa > 0 ? `${L.setAfter} ${sa} min<div class="k" style="margin-top:4px">${L.onBatt}</div>` : L.setLow;
+  }
+}
+setInterval(drawSetTile, 1000);
+let cdState = null;
+function drawCountdown(){
+  if (!cdState) return;
+  const now = cdState.now + Math.floor((Date.now() - cdState.at) / 1000);
+  const left = Math.max(0, cdState.ob + cdState.wait - now), since = now - cdState.ob;
+  const mmss = x => Math.floor(x/60) + ":" + String(x%60).padStart(2,"0");
+  const cd = $("countdown");
+  cd.className = "card countdown " + (left < 60 ? "bad" : "warn");
+  cd.innerHTML = `${L.shutdownIn} <b>${mmss(left)}</b> <span>(${L.onBattSince} ${mmss(since)}, ${L.shutdownAt} ${Math.round(cdState.wait/60)} min)</span>`;
+}
+setInterval(drawCountdown, 1000);
+let rescanUntil = 0, rescanStart = 0;
+async function rescan(){
+  try {
+    const r = await api("rescan.cgi", {method:"POST"});
+    const j = await r.json();
+    if (j.ok) { rescanStart = Date.now(); rescanUntil = rescanStart + 60000; refresh(); }
+  } catch(e) {}
+}
+
+function copyCmd(){
+  const span = event.target.previousElementSibling, t = span.textContent;
+  const done = () => { const b=event.target; const o=b.textContent; b.textContent=L.copied; setTimeout(()=>b.textContent=o,1500); };
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done).catch(()=>{});
+  else { const r=document.createRange(); r.selectNode(span); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); done(); }
+}
+
+document.querySelectorAll("#setform input, #setform select").forEach(i => i.addEventListener("change", () => i.dataset.dirty = 1) || i.addEventListener("input", () => i.dataset.dirty = 1));
+async function save(ev){
+  ev.preventDefault();
+  const body = new URLSearchParams(new FormData($("setform"))).toString();
+  try {
+    const r = await api("settings.cgi", {method:"POST", body,
+      headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+    const j = await r.json();
+    $("savemsg").textContent = j.ok ? L.saved : (j.error||"error");
+    if (j.ok) document.querySelectorAll("#setform input, #setform select").forEach(i => delete i.dataset.dirty);
+  } catch(e) { $("savemsg").textContent = "error"; }
+  return false;
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

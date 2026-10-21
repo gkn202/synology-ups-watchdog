@@ -1,0 +1,33 @@
+[
+  {
+    "step_title": "Batterie",
+    "items": [
+      {
+        "type": "singleselect",
+        "desc": "Tension nominale de la batterie de votre onduleur (étiquette du compartiment batterie ou fiche technique, p. ex. « 1 × 12 V 9 Ah » = 12 V). Utilisée pour estimer la charge. Modifiable plus tard dans l'application.",
+        "subitems": [
+          {
+            "key": "wiz_batt_12",
+            "desc": "12 V (1 batterie)",
+            "defaultValue": true
+          },
+          {
+            "key": "wiz_batt_24",
+            "desc": "24 V (2 batteries)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_36",
+            "desc": "36 V (3 batteries)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_48",
+            "desc": "48 V (4 batteries)",
+            "defaultValue": false
+          }
+        ]
+      }
+    ]
+  }
+]

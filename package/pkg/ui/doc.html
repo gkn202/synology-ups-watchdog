@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>UPS-Watchdog – Documentation</title>
+<style>
+:root{--fg:#1d2330;--muted:#5b6475;--line:#dfe3ea;--bg:#f6f7f9;--accent:#2b5fc4;--warnbg:#fff4e2;--warn:#a85c00}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:24px 20px 60px;background:#fff;border-left:1px solid var(--line);border-right:1px solid var(--line);min-height:100vh}
+h1{font-size:32px;margin:.2em 0 .4em} h2{font-size:25px;margin-top:1.8em;border-bottom:1px solid var(--line);padding-bottom:.2em}
+h3{font-size:21px;margin:.2em 0 .5em}
+a{color:var(--accent)} hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;background:#f1f3f6;padding:1px 5px;border-radius:4px}
+pre{background:#f1f3f6;border:1px solid var(--line);border-radius:8px;padding:14px;overflow:auto}
+pre code{background:none;padding:0;font-size:15.5px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:17px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top} th{background:#f1f3f6}
+blockquote{margin:16px 0;padding:6px 18px;background:var(--warnbg);border-left:5px solid var(--warn);border-radius:6px}
+blockquote h3{color:var(--warn)}
+.back{display:inline-block;margin-bottom:8px;font-size:16px}
+@media print{body{background:#fff} main{border:0} .back{display:none}}
+</style></head><body><main>
+<a class="back" href="index.html">← UPS-Watchdog</a>
+<h1>UPS-Watchdog for Synology DSM</h1>
+<p>Driver, status app and power-failure handling for USB UPSes with the
+<strong>RICHCOMM "UPS USB Mon V2.0"</strong> interface (USB ID <code>0925:1234</code>), e.g. the
+<strong>Vultech UPS1000VA-PURE</strong>. DSM's built-in UPS drivers cannot talk to this chip.</p>
+<p>Version 3.0.3 · Licence GPL-2.0-or-later · Source: <a href="https://github.com/gkn202/synology-ups-watchdog">https://github.com/gkn202/synology-ups-watchdog</a></p>
+<p>A full technical description (system layout, components, power-failure sequence, app layout) is available on request: <a href="mailto:gary.kneip@infinis.lu?subject=UPS-Watchdog%20%E2%80%93%20full%20description%20request">gary.kneip@infinis.lu</a>.</p>
+<hr />
+<h2>1. How it works</h2>
+<ul>
+<li>A statically linked <strong>Network UPS Tools <code>nutdrv_qx</code></strong> driver (subdriver
+  <code>richcomm-svc</code>, fallback <code>armac</code>) reads the UPS over USB. A small patch adds
+  <code>battery_voltage_divisor</code>, because some models report a multiple of the real
+  battery voltage.</li>
+<li>DSM's own <code>upsd</code> serves the data on <code>127.0.0.1</code> with a private configuration
+  in <code>/run/ups-watchdog/nut</code>. <code>/etc/ups</code> is not touched.</li>
+<li>A <strong>watchdog</strong> (root, started by a boot task) checks the UPS every 5 seconds:</li>
+<li><strong>On battery:</strong> after the configured time (default <strong>5 minutes</strong>) the NAS
+    is <strong>powered off cleanly</strong>. With "0 minutes" it powers off only when the
+    UPS reports "battery low".</li>
+<li><strong>Power returns in time:</strong> the shutdown is cancelled.</li>
+<li><strong>The UPS stops answering:</strong> after 30 s the driver is restarted. If the USB
+    chip has hung, the watchdog <strong>resets the USB port automatically</strong> (same as
+    unplugging the cable).</li>
+<li><strong>DSM's own UPS support stays off.</strong> DSM's "Standby" mode never wakes up by
+  itself, and cutting the UPS output would also switch off the router, switch
+  and smart-home devices on the same UPS.</li>
+<li><strong>Wake-up</strong> after power returns: Wake-on-LAN from a smart plug on plain mains
+  (see section 4). Backup: if the battery ran completely flat, DSM's
+  "restart automatically when power supply issue is fixed" starts the NAS.</li>
+</ul>
+<h2>2. Requirements</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NAS</td>
+<td>Synology with <strong>x86_64</strong> CPU and DSM 7 (tested: DS923+, DSM 7.3). Check with <code>uname -m</code>. ARM models are not supported.</td>
+</tr>
+<tr>
+<td>UPS</td>
+<td>USB chip <code>0925:1234</code> "RICHCOMM UPS USB Mon V2.0" (tested: Vultech UPS1000VA-PURE, 1 × 12 V / 9 Ah). Same chip in other Vultech, Armac, ExeGate, SVC and Accurat models.</td>
+</tr>
+<tr>
+<td>Wake-up</td>
+<td>A smart plug with ESPHome (e.g. NOUS A1T) in a wall socket <strong>not</strong> on the UPS, or any other device that can send Wake-on-LAN.</td>
+</tr>
+</tbody>
+</table>
+<h2>3. Installation and setup</h2>
+<ol>
+<li><strong>Package Center → Manual Install</strong> → select the <code>.spk</code>. Choose the battery
+    voltage in the wizard (12 V for one battery).</li>
+<li>
+<p><strong>Control Panel → Task Scheduler → Create → Triggered Task → User-defined script</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task</td>
+<td><code>UPS-Watchdog</code></td>
+</tr>
+<tr>
+<td>User</td>
+<td><strong>root</strong></td>
+</tr>
+<tr>
+<td>Event</td>
+<td><strong>Boot-up</strong></td>
+</tr>
+<tr>
+<td>Run command</td>
+<td><code>sleep 30</code><br><code>/var/packages/UPSWatchdog/target/bin/ups-watchdog.sh start</code></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Select the new task and click <strong>Run</strong> once (or restart the NAS).</p>
+</li>
+<li><strong>Control Panel → Hardware &amp; Power → UPS:</strong> leave UPS support <strong>off</strong>.</li>
+<li><strong>Control Panel → Hardware &amp; Power → General:</strong> enable
+   <strong>"Restart automatically when power supply issue is fixed"</strong> and
+   <strong>"Enable WOL on LAN 1"</strong> (on the LAN port that is actually connected).</li>
+<li>Set up the wake-up plug (section 4).</li>
+<li>Open <strong>UPS-Watchdog</strong> from the DSM main menu. The setup steps show a ✓ when
+   they are done.</li>
+</ol>
+<p><strong>After every package update, run the boot task once</strong> so the new watchdog
+version is active.</p>
+<h2>4. Wake-up plug with ESPHome</h2>
+<p>The plug sits in a <strong>wall socket that is not on the UPS</strong>, on the same LAN/Wi-Fi
+as the NAS. When mains returns it boots, waits 60 s for the network and sends a
+Wake-on-LAN packet every 30 s for about 10 minutes.</p>
+<blockquote>
+<h3>⚠ Adapt the MAC address</h3>
+<p><code>target_mac_address</code> must be the MAC address of <strong>your</strong> NAS – of the LAN
+port on which WOL is enabled. The value below is only a placeholder.</p>
+<p>Where to find it:</p>
+<ul>
+<li>in the <strong>UPS-Watchdog app</strong>, setup step 5: the block there already
+  contains the correct MAC of your NAS and can be copied as is;</li>
+<li>or <strong>Control Panel → Network → Network Interface → LAN 1</strong> (the MAC
+  address is shown in the details);</li>
+<li>or via SSH: <code>cat /sys/class/net/eth0/address</code>.</li>
+</ul>
+<p>With a wrong MAC the NAS <strong>stays off</strong> after a power failure until someone
+presses the power button.</p>
+</blockquote>
+<p>Add to the plug's ESPHome configuration. Put <code>on_boot</code> <strong>inside the existing
+<code>esphome:</code> section</strong> – do not create a second one:</p>
+<pre><code class="language-yaml">button:
+  - platform: wake_on_lan
+    id: wol_nas
+    name: &quot;WOL NAS&quot;
+    target_mac_address: AA:BB:CC:DD:EE:FF   # &lt;-- MAC of YOUR NAS
+
+esphome:
+  # keep name, board etc. as they are
+  on_boot:
+    priority: -100
+    then:
+      - wait_until:
+          condition: wifi.connected
+          timeout: 120s
+      - delay: 60s
+      - repeat:
+          count: 20
+          then:
+            - button.press: wol_nas
+            - delay: 30s
+</code></pre>
+<p>Recommended: give the plug a fixed IP (<code>wifi: manual_ip:</code>), so it comes up
+quickly after a power failure.</p>
+<p><strong>Test without a power failure:</strong> shut the NAS down, then press the button
+"WOL NAS" in the ESPHome web page / Home Assistant – the NAS must start. Then
+pull the plug out of the socket and put it back: after about 1–2 minutes the
+NAS starts.</p>
+<p><strong>Complete firmware for the NOUS A1T:</strong> the package contains the full ESPHome
+configuration <code>doc/wake-plug/ups-wake.yaml</code> (ESP8285, relay GPIO14, LED GPIO13,
+Wi-Fi setup network "UPS-Wake-Setup"). Set <code>nas_mac</code>, compile with ESPHome, and
+upload the gzipped <code>.bin</code> through the plug's Tasmota "Firmware Upgrade" page.</p>
+<p><strong>Tasmota cannot do this:</strong> the plug is sold with Tasmota, which has no
+Wake-on-LAN command. It must be reflashed with the ESPHome firmware above.</p>
+<h2>5. The app</h2>
+<ul>
+<li><strong>Status:</strong> on line / on battery / battery low, charge, battery voltage,
+  load, temperature, input/output voltage, frequency, beeper.</li>
+<li><strong>On mains:</strong> the tile "Power off set to" shows the configured time.</li>
+<li><strong>On battery:</strong> a live countdown "NAS powers off in …" and the estimated
+  <strong>battery time left</strong> (from charge and load; 800 W, 12 V / 9 Ah).</li>
+<li><strong>Red warning "Watchdog not running":</strong> the NAS would <strong>not</strong> power off on a
+  power failure. Run the boot task.</li>
+<li><strong>Search USB port:</strong> restarts the driver; if the UPS does not answer, the USB port is reset.</li>
+</ul>
+<p>The UPS reports no charge percentage; it is estimated from the battery voltage.
+Under load on battery the estimate is rough.</p>
+<h2>6. Settings (app → "Settings &amp; log")</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Power off after</td>
+<td>5 min</td>
+<td>Minutes on battery before the NAS powers off. 0 = only at "battery low".</td>
+</tr>
+<tr>
+<td>NAS LAN IP</td>
+<td>auto</td>
+<td>Only needed with several network ports.</td>
+</tr>
+<tr>
+<td>Battery nominal voltage</td>
+<td>12 V</td>
+<td>12 / 24 / 36 / 48 V.</td>
+</tr>
+<tr>
+<td>Battery voltage divisor</td>
+<td>auto</td>
+<td>Corrects models that report a multiple of the real voltage.</td>
+</tr>
+<tr>
+<td>Battery full / empty</td>
+<td>13.1 V / 10.4 V per 12 V</td>
+<td>Used for the charge estimate.</td>
+</tr>
+<tr>
+<td>Subdriver</td>
+<td>auto</td>
+<td><code>richcomm-svc</code>, fallback <code>armac</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Run the boot task again after saving.</p>
+<h2>7. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause / remedy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App still shows old content after an update</td>
+<td>Browser cache. Open <code>http://&lt;NAS&gt;:5000/webman/3rdparty/UPSWatchdog/index.html</code>, press Cmd+Shift+R (Ctrl+F5), reopen the app. Check the version in the footer.</td>
+</tr>
+<tr>
+<td>"Watchdog not running"</td>
+<td>Boot task missing, disabled, not run as root, or not run after an update. Run it.</td>
+</tr>
+<tr>
+<td>"No connection – chip found, but the UPS does not answer"</td>
+<td>USB chip hung (e.g. after a long time on battery). From 3.0.2 the watchdog resets the USB port by itself; otherwise unplug the USB cable for 10 s or switch the UPS off and on.</td>
+</tr>
+<tr>
+<td>"No Richcomm chip found"</td>
+<td>USB cable, other UPS model (the app names other UPS chips it finds).</td>
+</tr>
+<tr>
+<td>NAS does not start after power returns</td>
+<td>Wrong MAC in the plug, WOL not enabled on the connected LAN port, plug on the UPS instead of the wall, or plug not on the same LAN.</td>
+</tr>
+<tr>
+<td>DSM goes to standby and never wakes up</td>
+<td>DSM's UPS support is switched on. Switch it off.</td>
+</tr>
+</tbody>
+</table>
+<p>Log: app → "Settings &amp; log", or <code>/var/packages/UPSWatchdog/var/root.log</code>.</p>
+<h2>8. Uninstalling</h2>
+<ol>
+<li>Edit the boot task: replace <code>start</code> with <code>remove</code> at the end of the command,
+   run it once.</li>
+<li>Delete the task.</li>
+<li>Uninstall the package in Package Center.</li>
+</ol>
+<h2>9. Credits and licence</h2>
+<ul>
+<li><a href="https://networkupstools.org">Network UPS Tools</a> (GPL-2.0-or-later) –
+  <code>nutdrv_qx</code>, <code>richcomm-svc</code> subdriver
+  (<a href="https://github.com/networkupstools/nut/issues/3667">NUT #3667</a>).</li>
+<li>Related reports: <a href="https://github.com/networkupstools/nut/issues/2219">NUT #2219</a>
+  (Vultech UPS1400VA-LFP), <a href="https://github.com/networkupstools/nut/issues/2738">NUT #2738</a>
+  (Vultech UPS2000VA-PRO),
+  <a href="https://gist.github.com/lvl47/a280c7d1a0a8a489c084c83b8f28f054">lvl47's gist</a> (Accurat Flux 850).</li>
+<li><a href="https://libusb.info">libusb</a> (LGPL-2.1).</li>
+</ul>
+<p><strong>Source of the driver binary:</strong> <code>nutdrv_qx</code> is built from NUT commit
+<code>3b79a0fa8</code> with the patch <code>nut/0001-nutdrv_qx-battery_voltage_divisor.patch</code>
+and libusb 1.0.27 (without udev) by <code>build/build-nutdrv_qx.sh</code> in the
+project repository.</p>
+<p>This package: GPL-2.0-or-later, © gkn202. No warranty – test the power-off
+and wake-up with your own setup.</p>
+</main></body></html>

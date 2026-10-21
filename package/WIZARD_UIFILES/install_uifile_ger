@@ -1,0 +1,33 @@
+[
+  {
+    "step_title": "Batterie",
+    "items": [
+      {
+        "type": "singleselect",
+        "desc": "Nennspannung der Batterie Ihrer USV. Steht auf dem Etikett im Batteriefach oder im Datenblatt (z. B. „1 × 12 V 9 Ah“ = 12 V, „2 × 12 V“ = 24 V). Wird für die Ladestandsschätzung und zur Korrektur von Modellen verwendet, die ein Vielfaches der echten Spannung melden. Später in der App änderbar.",
+        "subitems": [
+          {
+            "key": "wiz_batt_12",
+            "desc": "12 V (1 Batterie)",
+            "defaultValue": true
+          },
+          {
+            "key": "wiz_batt_24",
+            "desc": "24 V (2 Batterien)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_36",
+            "desc": "36 V (3 Batterien)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_48",
+            "desc": "48 V (4 Batterien)",
+            "defaultValue": false
+          }
+        ]
+      }
+    ]
+  }
+]

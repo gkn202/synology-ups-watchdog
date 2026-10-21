@@ -1,0 +1,52 @@
+diff --git a/drivers/nutdrv_qx.c b/drivers/nutdrv_qx.c
+index fc10662c5..23bda272f 100644
+--- a/drivers/nutdrv_qx.c
++++ b/drivers/nutdrv_qx.c
+@@ -242,6 +242,7 @@ static struct {
+ 
+ static time_t	battery_lastpoll = 0;
+ static int	battery_voltage_reports_one_pack = 0, battery_voltage_reports_one_pack_considered = 0;
++static double	battery_voltage_divisor = 0;	/* 0 = not read yet; UPS-Watchdog patch */
+ 
+ /* Optionally multiply device-provided "battery.voltage" reading by
+  * the "battery.packs" (reading or common override setting) to end up
+@@ -256,6 +257,29 @@ int qx_multiply_battvolt(item_t *item, char *value, const size_t valuelen) {
+ 	/* Adjusted here or not, this method was called at all
+ 	 * and other code should not multiply again! */
+ 	battery_voltage_reports_one_pack_considered = 1;
++
++	/* UPS-Watchdog patch: some devices (e.g. Vultech UPS1000VA-PURE with
++	 * the Richcomm 0925:1234 bridge) report a multiple of the real battery
++	 * voltage. "battery_voltage_divisor" divides the raw reading first. */
++	if (battery_voltage_divisor == 0) {
++		const char	*d = getval("battery_voltage_divisor");
++		double	dv = d ? strtod(d, NULL) : 1;
++		battery_voltage_divisor = (dv > 0) ? dv : 1;
++		if (battery_voltage_divisor != 1)
++			upsdebugx(1, "battery_voltage_divisor: %.2f", battery_voltage_divisor);
++	}
++	if (battery_voltage_divisor != 1) {
++		if (sscanf(item->value, "%f", &s) != 1) {
++			upsdebugx(2, "unparsable ss.ss %s", item->value);
++			return -1;
++		}
++		s = (float)(s / battery_voltage_divisor);
++		if (battery_voltage_reports_one_pack && batt.packs >= 2)
++			s = (float)(s * batt.packs);
++		snprintf(value, valuelen, "%.2f", s);
++		return 0;
++	}
++
+ 	if (!battery_voltage_reports_one_pack || batt.packs < 2) {
+ 		/* (We assume by default that) this device already reports
+ 		 * the sum-total voltage for the battery assembly - so just
+@@ -3739,6 +3763,9 @@ void	upsdrv_makevartable(void)
+ 		"If your device natively reports battery.voltage of a single cell/pack, "
+ 		"multiply that into voltage of the whole battery assembly. "
+ 		"You may need an override.battery.packs=N setting also.");
++	addvar(VAR_VALUE, "battery_voltage_divisor",
++		"Divide the battery.voltage reported by the device by this value "
++		"(for devices that report a multiple of the real voltage; UPS-Watchdog patch)");
+ 
+ #ifdef QX_USB
+ 	addvar(VAR_VALUE, "subdriver", "Serial-over-USB subdriver selection");

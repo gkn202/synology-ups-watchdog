@@ -1,0 +1,15 @@
+{
+    ".url": {
+        "SYNO.SDS._ThirdParty.App.UPSWatchdog": {
+            "type": "url",
+            "title": "UPS-Watchdog",
+            "desc": "UPS status and power-failure watchdog (Richcomm 0925:1234, e.g. Vultech UPS1000VA-PURE)",
+            "icon": "images/icon_{0}.png",
+            "url": "/webman/3rdparty/UPSWatchdog/index.html",
+            "allUsers": false,
+            "grantPrivilege": "local",
+            "advanceGrantPrivilege": true,
+            "appWindow": "SYNO.SDS._ThirdParty.App.UPSWatchdog"
+        }
+    }
+}

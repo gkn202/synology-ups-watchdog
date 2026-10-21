@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 620" width="980" height="620" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <rect x="0" y="0" width="980" height="620" fill="#ffffff"/>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1e8a4c"/>
+    </marker>
+  </defs>
+  <style>
+    .box{fill:#f6f7f9;stroke:#5b6475;stroke-width:1.6;rx:10}
+    .ups{fill:#fff4e2;stroke:#a85c00;stroke-width:2}
+    .nas{fill:#e8f0fd;stroke:#2b5fc4;stroke-width:2}
+    .plug{fill:#e7f5ec;stroke:#1e8a4c;stroke-width:2}
+    .t{font-size:18px;font-weight:600;fill:#1d2330}
+    .s{font-size:15px;fill:#5b6475}
+    .pw{stroke:#b3261e;stroke-width:3;fill:none}
+    .usb{stroke:#2b5fc4;stroke-width:3;stroke-dasharray:9 6;fill:none}
+    .lan{stroke:#1e8a4c;stroke-width:3;stroke-dasharray:3 5;fill:none}
+    .lbl{font-size:14px;fill:#1d2330}
+  </style>
+
+  <!-- mains -->
+  <rect class="box" x="20" y="45" width="180" height="70"/>
+  <text class="t" x="110" y="76" text-anchor="middle">Mains 230 V</text>
+  <text class="s" x="110" y="98" text-anchor="middle">wall socket</text>
+
+  <!-- UPS -->
+  <rect class="ups" x="260" y="45" width="220" height="120" rx="10"/>
+  <text class="t" x="370" y="80" text-anchor="middle">UPS</text>
+  <text class="s" x="370" y="104" text-anchor="middle">Vultech UPS1000VA-PURE</text>
+  <text class="s" x="370" y="124" text-anchor="middle">Richcomm USB 0925:1234</text>
+  <text class="s" x="370" y="144" text-anchor="middle">800 W · 1 × 12 V / 9 Ah</text>
+
+  <!-- outputs -->
+  <rect class="nas" x="600" y="40" width="300" height="90" rx="10"/>
+  <text class="t" x="750" y="70" text-anchor="middle">Synology NAS</text>
+  <text class="s" x="750" y="93" text-anchor="middle">UPS-Watchdog package</text>
+  <text class="s" x="750" y="113" text-anchor="middle">WOL enabled on LAN 1</text>
+
+  <rect class="box" x="600" y="160" width="300" height="60"/>
+  <text class="t" x="750" y="186" text-anchor="middle">Router / fibre box</text>
+  <text class="s" x="750" y="207" text-anchor="middle">LAN + Wi-Fi</text>
+
+  <rect class="box" x="600" y="250" width="300" height="55"/>
+  <text class="t" x="750" y="283" text-anchor="middle">Network switch</text>
+
+  <rect class="box" x="600" y="335" width="300" height="55"/>
+  <text class="t" x="750" y="360" text-anchor="middle">Other devices (optional)</text>
+  <text class="s" x="750" y="380" text-anchor="middle">e.g. smart-home central</text>
+
+  <!-- power: mains -> UPS -> outputs -->
+  <path class="pw" d="M200,80 H260"/>
+  <path class="pw" d="M480,85 H540 V362 H600 M540,85 V85 H600 M540,190 H600 M540,277 H600"/>
+  <text class="lbl" x="490" y="76">UPS outputs</text>
+
+  <!-- USB -->
+  <path class="usb" d="M750,40 V18 H370 V45"/>
+  <text class="lbl" x="560" y="13" text-anchor="middle">USB cable: UPS status → NAS</text>
+
+  <!-- LAN -->
+  <path class="lan" d="M860,130 V160"/>
+  <path class="lan" d="M860,220 V250"/>
+  <text class="lbl" x="870" y="150">LAN</text>
+
+  <!-- wall socket + plug -->
+  <path class="pw" d="M110,115 V485 H200"/>
+  <rect class="box" x="200" y="450" width="160" height="70"/>
+  <text class="t" x="280" y="480" text-anchor="middle">Wall socket</text>
+  <text class="s" x="280" y="502" text-anchor="middle">NOT on the UPS</text>
+  <path class="pw" d="M360,485 H410"/>
+  <rect class="plug" x="410" y="445" width="270" height="80" rx="10"/>
+  <text class="t" x="545" y="475" text-anchor="middle">ESPHome smart plug</text>
+  <text class="s" x="545" y="497" text-anchor="middle">e.g. NOUS A1T · fixed IP</text>
+  <text class="s" x="545" y="515" text-anchor="middle">target_mac_address = NAS MAC</text>
+
+  <!-- WOL path -->
+  <path class="lan" d="M680,485 H940 V190 H906" marker-end="url(#arr)"/>
+  <text class="lbl" x="700" y="475">Wi-Fi: Wake-on-LAN packet</text>
+  <text class="lbl" x="700" y="510">router forwards it to the NAS (LAN 1)</text>
+
+  <!-- legend -->
+  <g transform="translate(20,580)">
+    <path class="pw" d="M0,0 H40"/><text class="lbl" x="50" y="5">power</text>
+    <path class="usb" d="M140,0 H180"/><text class="lbl" x="190" y="5">USB (status)</text>
+    <path class="lan" d="M320,0 H360"/><text class="lbl" x="370" y="5">network (LAN / Wi-Fi)</text>
+  </g>
+</svg>

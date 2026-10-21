@@ -1,0 +1,33 @@
+[
+  {
+    "step_title": "Battery",
+    "items": [
+      {
+        "type": "singleselect",
+        "desc": "Nominal battery voltage of your UPS. Look at the label in the battery compartment or the data sheet (e.g. '1 × 12 V 9 Ah' = 12 V, '2 × 12 V' = 24 V). Used to estimate the charge and to correct models that report a multiple of the real voltage. Can be changed later in the app.",
+        "subitems": [
+          {
+            "key": "wiz_batt_12",
+            "desc": "12 V (1 battery)",
+            "defaultValue": true
+          },
+          {
+            "key": "wiz_batt_24",
+            "desc": "24 V (2 batteries)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_36",
+            "desc": "36 V (3 batteries)",
+            "defaultValue": false
+          },
+          {
+            "key": "wiz_batt_48",
+            "desc": "48 V (4 batteries)",
+            "defaultValue": false
+          }
+        ]
+      }
+    ]
+  }
+]

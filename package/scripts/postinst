@@ -1,0 +1,18 @@
+#!/bin/sh
+chmod 755 "$SYNOPKG_PKGDEST/bin/nutdrv_qx" "$SYNOPKG_PKGDEST/bin/ups-watchdog.sh" 2>/dev/null
+chmod 755 "$SYNOPKG_PKGDEST"/ui/*.cgi 2>/dev/null
+
+# Battery voltage chosen in the install wizard -> settings (kept on upgrade)
+V="${SYNOPKG_PKGVAR:-/var/packages/UPSWatchdog/var}"
+NOM=""
+for n in 12 24 36 48; do
+    eval "sel=\${wiz_batt_$n}"
+    [ "$sel" = "true" ] && NOM=$n
+done
+if [ -n "$NOM" ]; then
+    mkdir -p "$V"
+    touch "$V/settings"
+    sed -i '/^BATT_NOMINAL=/d' "$V/settings"
+    echo "BATT_NOMINAL=$NOM" >> "$V/settings"
+fi
+exit 0
