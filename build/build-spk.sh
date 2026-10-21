@@ -14,7 +14,7 @@ VER="$(sed -n 's/^version="\(.*\)"/\1/p' "$P/INFO")"
 cp -r "$P/scripts" "$P/conf" "$P/WIZARD_UIFILES" "$P/PACKAGE_ICON.PNG" "$P/PACKAGE_ICON_256.PNG" "$T/"
 cp "$HERE/LICENSE" "$T/LICENSE"
 chmod 755 "$T"/scripts/*
-SPK="$OUT/UPS-Watchdog-x86_64-${VER%-*}.spk"   # public name without the DSM build number
+SPK="$OUT/UPS-Watchdog-x86_64-${VER%-*}-$(date +%F).spk"   # public name: version + build date, no DSM build number
 ( cd "$T" && tar cf "$SPK" --owner=0 --group=0 INFO package.tgz scripts conf WIZARD_UIFILES PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG LICENSE )
 rm -rf "$T"
 echo "$SPK"
